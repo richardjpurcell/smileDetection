@@ -17,6 +17,8 @@
 #include "./dlib/dlib/image_processing/frontal_face_detector.h"
 #include "./dlib/dlib/image_processing.h"
 #include <iostream>
+#include <vector>
+#include <string>
 
 #define RESIZE_HEIGHT 240
 #define FACE_DOWNSAMPLE_RATIO_DLIB 1
@@ -25,11 +27,28 @@ using namespace std;
 using namespace cv;
 using namespace dlib;
 
+std::vector<int> ratios =  {0,0,0};
+
 bool smile_detector(const dlib::cv_image<dlib::bgr_pixel> &cimg, \
                     const dlib::rectangle &face, \
                     const dlib::full_object_detection &landmarks)
 {
-    bool isSmiling = true;
+    bool isSmiling = false;
+
+    int cheekMouthRatio = (float)landmarks.part(3).x()/(float)landmarks.part(48).x() * 1000;
+    int mouthRatio = (float)landmarks.part(48).x()/(float)landmarks.part(54).x() * 1000;
+    int lipRatio = (float)landmarks.part(62).x()/(float)landmarks.part(66).x() * 1000;
+    int mouthWidth = landmarks.part(54).x() - landmarks.part(48).x();
+    int jawWidth = landmarks.part(13).x() - landmarks.part(3).x();
+    int mouthJawRatio = (float)mouthWidth/(float)jawWidth * 1000;
+
+    ratios[0] = mouthJawRatio;
+    ratios[1] = mouthRatio;
+    ratios[2] = lipRatio;
+    
+    if (mouthJawRatio > 450) {
+        isSmiling = true;
+    };
 
     return isSmiling;
 }
@@ -94,9 +113,16 @@ main()
             );
             full_object_detection landmarks = shape_predictor(cimg, face);
             if(smile_detector(cimg, face, landmarks)) {
-                putText(frame, format("Smiling :0"), Point(10, 30),
+                putText(frame, format("Smiling: 1"), Point(10, 30),
                 FONT_HERSHEY_SIMPLEX, 0.7, Scalar(0,0,255), 2, LINE_AA);
                 smile_frames.push_back(frame_number);
+                putText(frame, to_string(ratios[0]), Point(10, 50),
+                FONT_HERSHEY_SIMPLEX, 0.7, Scalar(0,0,255), 2, LINE_AA);
+            } else {
+                               putText(frame, format("Smiling: 0"), Point(10, 30),
+                FONT_HERSHEY_SIMPLEX, 0.7, Scalar(0,0,255), 2, LINE_AA);
+                putText(frame, to_string(ratios[0]), Point(10, 50),
+                FONT_HERSHEY_SIMPLEX, 0.7, Scalar(0,0,255), 2, LINE_AA);
             }
         }
 
